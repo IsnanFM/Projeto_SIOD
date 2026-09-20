@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>SIOD - Atividades 01 e 02 - Priorizacao de leads</title>
+<style>
+  @page { size: A4 landscape; margin: 0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Segoe UI", -apple-system, system-ui, sans-serif;
+    color: #16202c; background: #5a6472;
+  }
+  .slide {
+    width: 297mm; height: 209mm; padding: 15mm 18mm;
+    background: #fff; position: relative;
+    display: flex; flex-direction: column;
+    page-break-after: always; margin: 0 auto 6mm;
+    overflow: hidden;
+  }
+  .slide::before {
+    content: ""; position: absolute; top: 0; left: 0;
+    width: 100%; height: 5px; background: #0b5fa5;
+  }
+  .kicker {
+    font-size: 10.5pt; letter-spacing: .13em; text-transform: uppercase;
+    color: #0b5fa5; font-weight: 700; margin-bottom: 5mm;
+  }
+  h1 { font-size: 30pt; line-height: 1.12; letter-spacing: -.5px; margin-bottom: 6mm; }
+  h2 { font-size: 22pt; line-height: 1.15; margin-bottom: 7mm; letter-spacing: -.3px; }
+  .sub { font-size: 13pt; color: #55636f; line-height: 1.5; max-width: 200mm; }
+  .meta {
+    position: absolute; bottom: 11mm; left: 18mm; right: 18mm;
+    display: flex; justify-content: space-between;
+    font-size: 9.5pt; color: #8793a1;
+    border-top: 1px solid #e2e7ec; padding-top: 3mm;
+  }
+  .cols { display: flex; gap: 10mm; flex: 1; }
+  .col { flex: 1; }
+  ul { list-style: none; }
+  li { font-size: 12.5pt; line-height: 1.5; margin-bottom: 4mm; padding-left: 7mm; position: relative; }
+  li::before {
+    content: ""; position: absolute; left: 0; top: 7px;
+    width: 9px; height: 9px; background: #0b5fa5; border-radius: 2px;
+  }
+  li b { color: #08355c; }
+  .big { display: flex; gap: 6mm; margin: 4mm 0 6mm; }
+  .stat {
+    flex: 1; background: #f4f7fa; border-left: 4px solid #0b5fa5;
+    padding: 5mm 5mm 4mm;
+  }
+  .stat .n { font-size: 27pt; font-weight: 700; color: #0b5fa5; line-height: 1; }
+  .stat .l { font-size: 10pt; color: #55636f; margin-top: 2.5mm; line-height: 1.35; }
+  .alert { border-left-color: #b3341c; }
+  .alert .n { color: #b3341c; }
+  table { width: 100%; border-collapse: collapse; font-size: 11.5pt; }
+  th {
+    text-align: left; font-size: 9.5pt; text-transform: uppercase;
+    letter-spacing: .07em; color: #8793a1; padding: 0 0 2.5mm; font-weight: 600;
+    border-bottom: 2px solid #e2e7ec;
+  }
+  td { padding: 2.8mm 0; border-bottom: 1px solid #eef2f5; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+  .funil { display: flex; align-items: stretch; gap: 3mm; margin: 5mm 0; }
+  .fstep {
+    flex: 1; background: #f4f7fa; padding: 5mm 4mm; text-align: center;
+    border-top: 3px solid #0b5fa5;
+  }
+  .fstep .n { font-size: 19pt; font-weight: 700; color: #0b5fa5; }
+  .fstep .l { font-size: 9.5pt; color: #55636f; margin-top: 2mm; line-height: 1.3; }
+  .arrow { display: flex; align-items: center; color: #b8c2cc; font-size: 15pt; }
+  .flow {
+    font-family: Consolas, "Courier New", monospace; font-size: 10.5pt;
+    background: #16202c; color: #d7e3ee; padding: 5mm; line-height: 1.7;
+    border-radius: 3px; white-space: pre;
+  }
+  .tag {
+    display: inline-block; background: #0b5fa5; color: #fff;
+    font-size: 9pt; padding: 1mm 3mm; border-radius: 2px; font-weight: 600;
+  }
+  .tag.red { background: #b3341c; }
+  .tag.gray { background: #8793a1; }
+  .quote {
+    border-left: 4px solid #0b5fa5; padding: 3mm 0 3mm 6mm;
+    font-size: 13pt; line-height: 1.5; color: #2b3947; margin: 5mm 0;
+  }
+  @media screen { body { padding: 8mm 0; } .slide { box-shadow: 0 3px 16px rgba(0,0,0,.35); } }
+</style>
+</head>
+<body>
+
+<!-- 1 -->
+<section class="slide">
+  <div class="kicker">PGCOMP / UFBA &middot; Sistemas Inteligentes Orientados a Dados &middot; 2026.2</div>
+  <h1>Priorização de leads de tecnologia<br>na Bahia</h1>
+  <p class="sub">
+    Transformar o cadastro público de CNPJ da Receita Federal em uma lista
+    ordenada de empresas, com justificativa explícita para cada posição.
+  </p>
+  <div class="big" style="margin-top:9mm">
+    <div class="stat">
+      <div class="n">Analista comercial</div>
+      <div class="l">quem sente a dor: monta a lista de prospecção à mão, toda semana</div>
+    </div>
+    <div class="stat">
+      <div class="n">Quem abordar primeiro</div>
+      <div class="l">a decisão que o sistema apoia</div>
+    </div>
+  </div>
+  <div class="quote">
+    Se construirmos uma lista priorizada por CNAE usando os dados abertos da RFB
+    com regra explícita de aderência, esperamos reduzir o tempo até uma lista
+    utilizável e aumentar a pertinência dos contatos, em comparação com a
+    filtragem manual de planilha.
+  </div>
+  <div class="meta"><span>Atividades 01 e 02</span><span>github.com/IsnanFM/Projeto_SIOD</span></div>
+</section>
+
+<!-- 2 -->
+<section class="slide">
+  <div class="kicker">Atividade 01 &middot; A fonte</div>
+  <h2>Dados abertos de CNPJ da Receita Federal</h2>
+  <div class="cols">
+    <div class="col">
+      <ul>
+        <li><b>Não há API de consulta em massa.</b> A distribuição é um compartilhamento Nextcloud por <b>WebDAV</b>. APIs por CNPJ servem para enriquecer, não para montar universo.</li>
+        <li><b>ZIP → CSV</b>, separador <code>;</code>, <b>ISO-8859-1</b>, <b>sem cabeçalho</b>. Os nomes das colunas vêm do layout oficial.</li>
+        <li>Atualização <b>mensal</b>; competências de 2025-03 a 2026-09.</li>
+        <li>O <b>CNPJ não existe pronto</b>: vem quebrado em básico, ordem e dígito verificador.</li>
+        <li>Município usa <b>código interno da RFB</b>, não IBGE. Salvador é <code>3849</code>, não <code>2927408</code>.</li>
+      </ul>
+    </div>
+    <div class="col">
+      <table>
+        <tr><th>Arquivo</th><th style="text-align:right">Tamanho</th></tr>
+        <tr><td>Estabelecimentos1</td><td class="num">326 MB</td></tr>
+        <tr><td>Empresas 0..9</td><td class="num">1,28 GB</td></tr>
+        <tr><td>Simples</td><td class="num">294 MB</td></tr>
+        <tr><td>Cnaes + Municipios</td><td class="num">&lt; 1 MB</td></tr>
+        <tr><td><b>Amostra processada</b></td><td class="num"><b>2,0 GB</b></td></tr>
+        <tr><td style="color:#8793a1">Competência completa</td><td class="num" style="color:#8793a1">7,23 GB</td></tr>
+      </table>
+      <p class="sub" style="font-size:11pt;margin-top:6mm">
+        Recorte: <b>UF = BA</b> e CNAE divisões <b>62 + 63</b> — serviços de TI e
+        serviços de informação. "Tecnologia" atravessa quatro seções da CNAE 2.0;
+        o filtro é por prefixo de divisão, não por subclasse.
+      </p>
+    </div>
+  </div>
+  <div class="meta"><span>Caracterização da fonte</span><span>2 / 6</span></div>
+</section>
+
+<!-- 3 -->
+<section class="slide">
+  <div class="kicker">Atividade 01 &middot; O achado</div>
+  <h2>A base é impecável. O problema é semântico.</h2>
+  <div class="big">
+    <div class="stat"><div class="n">0</div><div class="l">registros reprovados nas cinco validações, incluindo dígito verificador</div></div>
+    <div class="stat alert"><div class="n">50,5%</div><div class="l">do universo recortado está <b>baixado</b> — empresa encerrada</div></div>
+    <div class="stat alert"><div class="n">19,9%</div><div class="l">está inapto</div></div>
+  </div>
+  <div class="cols">
+    <div class="col">
+      <table>
+        <tr><th>Situação cadastral</th><th style="text-align:right">Reg.</th><th style="text-align:right">%</th></tr>
+        <tr><td>Baixada</td><td class="num">487</td><td class="num">50,47</td></tr>
+        <tr><td>Ativa</td><td class="num">277</td><td class="num">28,70</td></tr>
+        <tr><td>Inapta</td><td class="num">192</td><td class="num">19,90</td></tr>
+        <tr><td>Suspensa</td><td class="num">9</td><td class="num">0,93</td></tr>
+      </table>
+    </div>
+    <div class="col">
+      <p class="sub" style="font-size:12.5pt">
+        <b>O cadastro registra existência jurídica, não atividade econômica.</b>
+        Um filtro por CNAE devolveria 965 nomes, dos quais sete em cada dez são
+        inúteis para prospecção.
+      </p>
+      <p class="sub" style="font-size:12.5pt;margin-top:5mm">
+        É esta a evidência de que <b>filtro não basta</b> — e de que o valor do
+        sistema está no ranqueamento, não na consulta.
+      </p>
+      <p class="sub" style="font-size:11pt;margin-top:5mm;color:#b3341c">
+        <b>Hipótese refutada:</b> eu esperava MEI dominando o setor. É 1,5% — as
+        ocupações permitidas ao MEI excluem desenvolvimento e consultoria em TI.
+        O discriminador virou situação cadastral e porte.
+      </p>
+    </div>
+  </div>
+  <div class="meta"><span>Avaliação da qualidade</span><span>3 / 6</span></div>
+</section>
+
+<!-- 4 -->
+<section class="slide">
+  <div class="kicker">Atividade 02 &middot; O pipeline</div>
+  <h2>Entrada real, saída estruturada, tudo em código</h2>
+  <div class="cols">
+    <div class="col" style="flex:1.15">
+      <div class="flow">ZIP (latin-1, sem cabeçalho)
+  │
+  ├─ transcodificar    latin-1 → UTF-8, em cache
+  ├─ ler               scan_csv preguiçoso, tudo texto
+  ├─ recortar          UF=BA ∧ CNAE 62|63
+  ├─ validar           5 regras, marcação ≠ descarte
+  ├─ enriquecer        porte, MEI, descrições
+  ├─ remover pessoais  LGPD, antes de escrever
+  └─ priorizar         regra + justificativa
+        │
+        ├→ universo_tratado.parquet
+        ├→ leads_priorizados.csv
+        └→ evidencia.json</div>
+    </div>
+    <div class="col">
+      <table>
+        <tr><th>Validação</th><th style="text-align:right">Reprov.</th></tr>
+        <tr><td>Dígito verificador do CNPJ (mód. 11)</td><td class="num">0</td></tr>
+        <tr><td>Situação cadastral no domínio</td><td class="num">0</td></tr>
+        <tr><td>CNAE existe em <code>Cnaes.zip</code></td><td class="num">0</td></tr>
+        <tr><td>Data parseável e não futura</td><td class="num">0</td></tr>
+        <tr><td>CNPJ de 14 dígitos único</td><td class="num">0</td></tr>
+      </table>
+      <ul style="margin-top:6mm">
+        <li><b>Reprodutível:</b> dois comandos, do download à saída.</li>
+        <li><b>Idempotente e retomável:</b> <code>Range</code>, escrita atômica em <code>.part</code>, cinco tentativas.</li>
+        <li><b>Nível 1:</b> regra explícita, sem ML. Cada lead carrega o motivo da posição.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="meta"><span>Implementação e validações</span><span>4 / 6</span></div>
+</section>
+
+<!-- 5 -->
+<section class="slide">
+  <div class="kicker">Atividade 02 &middot; Evidência de execução</div>
+  <h2>Competência 2026-09 &middot; 87 segundos</h2>
+  <div class="funil">
+    <div class="fstep"><div class="n">4.753.435</div><div class="l">estabelecimentos recebidos<br>(partição 1 de 10)</div></div>
+    <div class="arrow">&rarr;</div>
+    <div class="fstep"><div class="n">965</div><div class="l">após recorte<br>UF=BA ∧ CNAE 62+63</div></div>
+    <div class="arrow">&rarr;</div>
+    <div class="fstep"><div class="n">965</div><div class="l">validados<br>zero descartes</div></div>
+    <div class="arrow">&rarr;</div>
+    <div class="fstep"><div class="n">277</div><div class="l">leads ativos<br>priorizados</div></div>
+  </div>
+  <h2 style="font-size:15pt;margin:4mm 0 4mm">Alertas e correções durante a execução</h2>
+  <div class="cols">
+    <div class="col">
+      <ul>
+        <li><span class="tag red">corrigido</span> &nbsp;<b>77,6% sem porte.</b> Os básicos de <code>Estabelecimentos1</code> têm só <b>10,3%</b> de interseção com <code>Empresas1</code>: o particionamento das duas tabelas é independente. Passei a ler as dez partições.</li>
+      </ul>
+    </div>
+    <div class="col">
+      <ul>
+        <li><span class="tag red">corrigido</span> &nbsp;<b>MEI deu 0%.</b> A RFB grava <code>"00000000"</code> em data ausente, não nulo — a condição de exclusão zerava tudo. Valor real: 1,5%.</li>
+        <li><span class="tag gray">tratado</span> &nbsp;Queda de conexão no download. Motivou a retentativa com retomada.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="meta"><span>Entrada → descartes → saída</span><span>5 / 6</span></div>
+</section>
+
+<!-- 6 -->
+<section class="slide">
+  <div class="kicker">Checkpoint</div>
+  <h2>O que avançou, o que travou, o que decidi</h2>
+  <div class="cols">
+    <div class="col">
+      <div class="kicker" style="font-size:9.5pt;margin-bottom:3mm">Avançou</div>
+      <ul>
+        <li>Camadas <b>Fonte</b> e <b>Pipeline</b> implementadas e reproduzíveis.</li>
+        <li>277 leads ativos com score e justificativa por linha.</li>
+        <li>Dado pessoal descartado antes de qualquer escrita.</li>
+      </ul>
+      <div class="kicker" style="font-size:9.5pt;margin:6mm 0 3mm">Travou</div>
+      <ul>
+        <li><b>Viés da partição.</b> 2021 tem 147.576 aberturas; 2022 a 2026 somam ~120. A amostra não representa registros recentes — e empresa nova é lead de interesse. Causa não determinada.</li>
+      </ul>
+    </div>
+    <div class="col">
+      <div class="kicker" style="font-size:9.5pt;margin-bottom:3mm">Decidi</div>
+      <ul>
+        <li>Situação ativa passa de pontuação a <b>critério eliminatório</b>.</li>
+        <li>MEI foi rebaixado; <b>porte</b> assumiu o papel de discriminador.</li>
+        <li>A camada de IA <b>continua sendo regra</b>: sem variável de operação ou faturamento, subir para ML exige outra fonte, não outro algoritmo.</li>
+      </ul>
+      <div class="kicker" style="font-size:9.5pt;margin:6mm 0 3mm">Próximo passo</div>
+      <ul>
+        <li>Processar as dez partições e verificar se o corte temporal desaparece.</li>
+        <li>Submeter os 20 primeiros leads ao analista e medir pertinência.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="meta"><span>github.com/IsnanFM/Projeto_SIOD</span><span>6 / 6</span></div>
+</section>
+
+</body>
+</html>

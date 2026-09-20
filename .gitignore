@@ -16,4 +16,5 @@ Thumbs.db
 desktop.ini
 
 # PDFs do enunciado
-*.pdf
+Atividade_*.pdf
+Aula_*.pdf
