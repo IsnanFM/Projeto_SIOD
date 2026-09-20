@@ -135,7 +135,7 @@ def relatorio(df: pl.DataFrame, rs: list[Regra]) -> list[dict]:
     linhas.append(
         {
             "regra": "cnpj_unico",
-            "descricao": "CNPJ de 14 digitos nao se repete na amostra",
+            "descricao": "CNPJ de 14 digitos nao se repete no recorte",
             "reprovadas": duplicados,
         }
     )

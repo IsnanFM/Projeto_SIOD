@@ -14,8 +14,11 @@ em memoria, o que mantem o pipeline executavel em maquina comum.
 
 from __future__ import annotations
 
+import gc
 import logging
+import time
 import zipfile
+from collections.abc import Iterator
 from pathlib import Path
 
 import polars as pl
@@ -74,6 +77,116 @@ def _scan(caminho_csv: Path, colunas: list[str]) -> pl.LazyFrame:
 
 def estabelecimentos(caminho_zip: Path, dir_cache: Path) -> pl.LazyFrame:
     return _scan(transcodificar(caminho_zip, dir_cache), layout.COLUNAS_ESTABELECIMENTOS)
+
+
+def _apagar(caminho: Path, tentativas: int = 20) -> None:
+    """Remove um arquivo que o polars pode ainda ter mapeado em memoria.
+
+    No Windows, escrever ou apagar arquivo com mapeamento vivo falha com
+    ERROR_USER_MAPPED_FILE. O mapeamento cai sozinho quando o LazyFrame da
+    fatia e coletado, entao basta insistir por alguns instantes.
+    """
+    for tentativa in range(tentativas):
+        try:
+            caminho.unlink(missing_ok=True)
+            return
+        except OSError:
+            gc.collect()
+            time.sleep(0.25 * (tentativa + 1))
+    log.warning("nao foi possivel apagar %s; segue em disco", caminho.name)
+
+
+LIMITE_FATIA = 1 << 30  # 1 GiB de texto por fatia
+
+
+def fatiar(
+    caminho_zip: Path, dir_cache: Path, limite: int = LIMITE_FATIA
+) -> Iterator[Path]:
+    """Transcodifica o ZIP em fatias UTF-8 de no maximo `limite` bytes.
+
+    Estabelecimentos descompactado sao 15,9 GiB, e so a particao 0 tem 6,7
+    GiB (medido no cabecalho dos ZIP). Com Empresas (5,1 GiB) e Simples (3,0
+    GiB) ja em cache, materializar as particoes inteiras nao cabe em disco.
+    Cada fatia e entregue ao chamador e apagada assim que ele pede a proxima,
+    entao o pico de disco e o tamanho de UMA fatia, nao o da particao.
+
+    O corte so ocorre em fim de linha fora de aspas, de modo que nenhum
+    registro citado seja partido ao meio -- contar linhas aqui, por '\\n',
+    divergiria do parser nesse caso, entao quem conta e o polars.
+
+    Contrato: o chamador precisa materializar a fatia antes de avancar o
+    gerador -- depois do proximo `next()` o arquivo ja nao existe.
+    """
+    dir_cache.mkdir(parents=True, exist_ok=True)
+    for antiga in dir_cache.glob(caminho_zip.stem + ".fatia*.csv"):
+        _apagar(antiga)
+
+    indice = 0
+    fatia = dir_cache / f"{caminho_zip.stem}.fatia{indice}.csv"
+
+    def _consumir(saida, trecho: bytes, estado: dict) -> None:
+        saida.write(trecho)
+        estado["bytes"] += len(trecho)
+        estado["dentro"] ^= trecho.count(b'"') % 2 == 1
+
+    with zipfile.ZipFile(caminho_zip) as z:
+        membro = z.namelist()[0]
+        log.info("fatiando %s (limite %.1f GiB)", membro, limite / 2**30)
+        estado = {"bytes": 0, "dentro": False}
+        saida = open(fatia, "wb")
+        try:
+            with z.open(membro) as origem:
+                while bloco := origem.read(BLOCO):
+                    dados = bloco.decode("latin-1").encode("utf-8")
+                    pos = 0
+                    while pos < len(dados):
+                        if estado["bytes"] < limite:
+                            resto = min(len(dados) - pos, limite - estado["bytes"])
+                            _consumir(saida, dados[pos : pos + resto], estado)
+                            pos += resto
+                            continue
+                        nl = dados.find(b"\n", pos)
+                        if nl == -1:
+                            _consumir(saida, dados[pos:], estado)
+                            pos = len(dados)
+                            continue
+                        _consumir(saida, dados[pos : nl + 1], estado)
+                        pos = nl + 1
+                        if not estado["dentro"]:
+                            saida.close()
+                            yield fatia
+                            _apagar(fatia)
+                            estado = {"bytes": 0, "dentro": False}
+                            indice += 1
+                            fatia = dir_cache / f"{caminho_zip.stem}.fatia{indice}.csv"
+                            saida = open(fatia, "wb")
+            saida.close()
+            if estado["bytes"]:
+                yield fatia
+        finally:
+            if not saida.closed:
+                saida.close()
+            _apagar(fatia)
+
+
+def estabelecimentos_particionado(
+    dir_raw: Path, dir_cache: Path, limite: int = LIMITE_FATIA
+) -> Iterator[tuple[str, pl.LazyFrame]]:
+    """Percorre as dez particoes de Estabelecimentos, fatia a fatia.
+
+    Devolve (particao, LazyFrame da fatia). O universo do
+    projeto deixa de ser amostra: o particionamento da RFB nao e uniforme --
+    nem em tamanho (particao 0 com 2,1 GB contra ~330 MB nas demais) nem em
+    data de abertura -- e sem uniformidade nao existe fator que leve de uma
+    particao ao universo.
+    """
+    partes = sorted(dir_raw.glob("Estabelecimentos*.zip"))
+    if not partes:
+        raise FileNotFoundError(f"nenhuma particao de Estabelecimentos em {dir_raw}")
+    log.info("Estabelecimentos: %d particoes", len(partes))
+    for parte in partes:
+        for caminho in fatiar(parte, dir_cache, limite):
+            yield parte.stem, _scan(caminho, layout.COLUNAS_ESTABELECIMENTOS)
 
 
 def empresas(caminho_zip: Path, dir_cache: Path) -> pl.LazyFrame:

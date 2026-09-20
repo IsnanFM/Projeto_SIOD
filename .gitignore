@@ -18,3 +18,14 @@ desktop.ini
 # PDFs do enunciado
 Atividade_*.pdf
 Aula_*.pdf
+
+# Template baixado; o que importa esta extraido em docs/slides/
+UFBA-DCC-Slides-master.zip
+
+# Build do LaTeX
+docs/slides/*.aux
+docs/slides/*.log
+docs/slides/*.nav
+docs/slides/*.out
+docs/slides/*.snm
+docs/slides/*.toc

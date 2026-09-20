@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import logging
 import time
+from concurrent.futures import ThreadPoolExecutor
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
@@ -30,21 +31,24 @@ RAIZ = "Dados/Cadastros/CNPJ/"
 NS = {"d": "DAV:"}
 BLOCO = 1 << 20  # 1 MiB
 
-# A amostra usa a particao 1 de Estabelecimentos: a particao 0 e
-# desproporcional (2,1 GB contra ~330 MB nas demais).
+# Estabelecimentos vem COMPLETO: as dez particoes, nao uma amostra. A particao
+# 1 foi a amostra das Atividades 01/02 e provou-se nao representativa -- 2021
+# concentra 147.576 aberturas contra ~120 em 2022-2026 -- e o particionamento
+# nao e uniforme nem em tamanho: a particao 0 tem 2,1 GB contra ~330 MB nas
+# demais (PROPFIND, competencia 2026-09). Sem uniformidade nao ha fator que
+# leve da amostra ao universo, entao o recorte passa a ser censo.
 #
-# Empresas vem COMPLETO, e nao apenas a particao de mesmo indice. Medido na
-# competencia 2026-09: os basicos de Estabelecimentos1 tem apenas 10,3% de
-# intersecao com Empresas1 -- o particionamento das duas tabelas e
-# independente. Usar so a particao 1 deixaria 77,6% dos registros sem porte,
-# que e o discriminador principal da priorizacao.
+# Empresas tambem vem completo: os basicos de Estabelecimentos1 tem apenas
+# 10,3% de intersecao com Empresas1 -- o particionamento das duas tabelas e
+# independente, e usar so a particao de mesmo indice deixava 77,6% dos
+# registros sem porte, que e o discriminador principal da priorizacao.
 #
 # Simples nao e particionado: um unico arquivo cobre toda a base.
-ARQUIVOS_AMOSTRA = (
+ARQUIVOS = (
     "Cnaes.zip",
     "Municipios.zip",
-    "Estabelecimentos1.zip",
     "Simples.zip",
+    *(f"Estabelecimentos{i}.zip" for i in range(10)),
     *(f"Empresas{i}.zip" for i in range(10)),
 )
 
@@ -134,19 +138,29 @@ def baixar(caminho_remoto: str, destino: Path, tentativas: int = 5) -> Path:
     raise RuntimeError(f"{destino.name}: download nao concluido")
 
 
-def extrair_amostra(
+PARALELO = 4  # o servidor limita por conexao, nao a banda: medido em
+# 2026-09, um segundo fluxo rende 1,08 MiB/s sem reduzir o primeiro (1,27).
+
+
+def extrair(
     dir_destino: Path, competencia: str | None = None
 ) -> dict[str, Path]:
-    """Baixa o recorte de arquivos usado pelo projeto. Devolve nome -> caminho."""
+    """Baixa os arquivos usados pelo projeto. Devolve nome -> caminho.
+
+    Os downloads correm em paralelo porque o gargalo e a conexao individual;
+    cada arquivo continua idempotente e retomavel, entao reexecutar depois de
+    uma queda so completa o que falta.
+    """
     competencia = competencia or competencia_mais_recente()
     log.info("competencia: %s", competencia)
     remoto = f"{RAIZ}{competencia}/"
     destino = dir_destino / competencia
 
-    baixados: dict[str, Path] = {}
-    for nome in ARQUIVOS_AMOSTRA:
-        baixados[nome] = baixar(remoto + nome, destino / nome)
-    return baixados
+    with ThreadPoolExecutor(max_workers=PARALELO) as pool:
+        caminhos = pool.map(
+            lambda nome: baixar(remoto + nome, destino / nome), ARQUIVOS
+        )
+        return dict(zip(ARQUIVOS, caminhos))
 
 
 if __name__ == "__main__":
@@ -156,4 +170,4 @@ if __name__ == "__main__":
         datefmt="%H:%M:%S",
     )
     raiz = Path(__file__).resolve().parent.parent
-    extrair_amostra(raiz / "data" / "raw")
+    extrair(raiz / "data" / "raw")

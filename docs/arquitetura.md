@@ -56,7 +56,7 @@ distintas, e a razão é estrutural: `porte` não está em Estabelecimentos, e a
 marcação de MEI não está em nenhuma das duas.
 
 ```
-Estabelecimentos1.zip  →  universo, CNAE, município, situação, datas
+Estabelecimentos0..9.zip → universo, CNAE, município, situação, datas
 Empresas0..9.zip       →  razão social, porte, natureza jurídica
 Simples.zip            →  opção pelo MEI
 Cnaes.zip, Municipios.zip → domínios de validação e de-para
@@ -67,19 +67,19 @@ Cnaes.zip, Municipios.zip → domínios de validação e de-para
 ```
 ZIP (latin-1, sem cabeçalho)
    │
-   ├─ transcodificar ──→ cache UTF-8       (uma vez, reaproveitado)
+   ├─ fatiar ──────────→ fatias UTF-8 de 1 GiB (descartadas após uso)
    │
    ├─ scan_csv lazy, tudo como texto       (tipagem é etapa explícita)
    │
-   ├─ recortar         UF=BA ∧ CNAE 62|63
+   ├─ recortar         UF=BA ∧ CNAE 62|63, fatia a fatia
    │
    ├─ validar          5 regras, marcação separada do descarte
    │
    ├─ enriquecer       join porte, MEI, descrições
    │
-   ├─ remover pessoais LGPD, antes de qualquer saída versionada
+   ├─ montar contato   telefone, e-mail e endereço legíveis
    │
-   └─ priorizar        regra explícita + justificativa por lead
+   └─ ordenar          critérios em ordem declarada + justificativa
           │
           ├──→ data/processed/universo_tratado.parquet
           ├──→ data/processed/leads_priorizados.csv
@@ -88,9 +88,10 @@ ZIP (latin-1, sem cabeçalho)
 
 Quatro decisões que o desenho da Aula 01 não previa:
 
-1. **Transcodificação em etapa própria.** O polars lê apenas UTF-8 e a RFB
-   publica em ISO-8859-1. Como latin-1 é monobyte, a conversão por blocos é
-   segura e o resultado fica em cache.
+1. **Transcodificação e fatiamento em etapa própria.** O polars lê apenas UTF-8
+   e a RFB publica em ISO-8859-1. Como latin-1 é monobyte, a conversão por
+   blocos é segura. Estabelecimentos tem 15,9 GiB descompactado, então a
+   conversão sai em fatias de 1 GiB que são filtradas e apagadas uma a uma.
 
 2. **Tudo entra como texto.** Deixar o polars inferir tipo na leitura mascararia
    exatamente os defeitos que a Atividade 01 pede para medir. A conversão é
@@ -100,9 +101,11 @@ Quatro decisões que o desenho da Aula 01 não previa:
    descarte ocorre em um único ponto. Sem isso não é possível atribuir cada
    linha perdida à sua causa.
 
-4. **LGPD é etapa do pipeline, não convenção.** `remover_dados_pessoais()` roda
-   antes de qualquer escrita. A base contém MEI cuja razão social é nome civil
-   de pessoa física, além de e-mail, telefone e endereço.
+4. **O contato faz parte da saída.** Telefone, e-mail e endereço vêm do próprio
+   cadastro público e são o que torna a lista acionável. A proteção é de
+   publicação: `data/` fica fora do git, e qualquer recorte divulgado fora do
+   time sai sem contato — a base inclui MEI, cuja razão social é nome civil de
+   pessoa física.
 
 ## Caixa mais arriscada
 

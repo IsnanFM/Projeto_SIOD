@@ -90,25 +90,26 @@ PORTE_EMPRESA = {
 MATRIZ_FILIAL = {"1": "Matriz", "2": "Filial"}
 
 # --------------------------------------------------------------------------
-# LGPD
+# Contato e publicacao
 # --------------------------------------------------------------------------
-# A base contem MEI cuja razao social e o nome civil da pessoa fisica, alem de
-# contato e endereco. A Atividade 01 proibe publicar dado pessoal no
-# repositorio, entao estas colunas sao descartadas na saida versionada.
-# O enriquecimento de contato, se necessario, roda fora do controle de versao.
+# Telefone, e-mail e endereco sao publicados pela propria RFB no cadastro e
+# sao o que torna a lista acionavel: sem eles o analista tem nomes, nao leads.
+# Por isso entram na saida.
+#
+# A restricao e de PUBLICACAO, nao de uso: `data/` esta fora do controle de
+# versao e nenhum arquivo com contato e commitado. A base inclui MEI e
+# empresario individual, cuja razao social e o nome civil da pessoa fisica --
+# ao divulgar qualquer recorte fora do time, o contato sai antes.
 
-COLUNAS_SENSIVEIS = [
-    "correio_eletronico",
+COLUNAS_CONTATO = [
     "ddd_1",
     "telefone_1",
-    "ddd_2",
-    "telefone_2",
-    "ddd_fax",
-    "fax",
+    "correio_eletronico",
     "tipo_logradouro",
     "logradouro",
     "numero",
-    "complemento",
+    "bairro",
+    "cep",
 ]
 
 # --------------------------------------------------------------------------

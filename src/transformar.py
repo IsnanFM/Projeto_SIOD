@@ -1,4 +1,4 @@
-"""Transformacoes: recorte, enriquecimento, descarte LGPD e priorizacao.
+"""Transformacoes: recorte, enriquecimento, contato e priorizacao.
 
 A saida deste modulo e o artefato que o analista comercial consome: uma lista
 ordenada de leads com a justificativa de cada posicao. Filtro sozinho nao
@@ -43,18 +43,23 @@ def enriquecer(
 
     MEI nao e um valor de `porte`: o campo so distingue micro, pequeno porte e
     demais. A marcacao vive em Simples.zip, e por isso exige esta juncao.
+
+    Empresas e Simples sao reduzidos por semi-juncao antes do join: sao 66 e 40
+    milhoes de linhas contra as ~15 mil do recorte, e casar tudo para depois
+    descartar 99,98% estoura a memoria. A semi-juncao monta a tabela hash a
+    partir do lado pequeno e so deixa passar o que interessa.
     """
+    basicos = lf.select("cnpj_basico").unique()
+    empresas_alvo = empresas.select(
+        "cnpj_basico", "razao_social", "porte_empresa", "natureza_juridica"
+    ).join(basicos, on="cnpj_basico", how="semi")
+    simples_alvo = simples.select(
+        "cnpj_basico", "opcao_mei", "data_exclusao_mei"
+    ).join(basicos, on="cnpj_basico", how="semi")
+
     return (
-        lf.join(
-            empresas.select("cnpj_basico", "razao_social", "porte_empresa", "natureza_juridica"),
-            on="cnpj_basico",
-            how="left",
-        )
-        .join(
-            simples.select("cnpj_basico", "opcao_mei", "data_exclusao_mei"),
-            on="cnpj_basico",
-            how="left",
-        )
+        lf.join(empresas_alvo, on="cnpj_basico", how="left")
+        .join(simples_alvo, on="cnpj_basico", how="left")
         .join(
             cnaes.rename({"codigo": "cnae_cod", "descricao": "cnae_descricao"}),
             left_on=pl.col("cnae_fiscal_principal").str.zfill(7),
@@ -91,66 +96,136 @@ def enriquecer(
     )
 
 
-def remover_dados_pessoais(lf: pl.LazyFrame) -> pl.LazyFrame:
-    """Descarta colunas de contato e endereco antes da saida versionada.
+def montar_contato(lf: pl.LazyFrame) -> pl.LazyFrame:
+    """Monta telefone, e-mail e endereco legiveis para o analista ligar.
 
-    A base contem MEI cuja razao social e o nome civil da pessoa fisica. O
-    contato permanece disponivel na etapa de extracao para uso operacional,
-    mas nao entra em nenhum artefato publicado.
+    Sem contato a lista nao e acionavel: o analista teria nomes e nenhuma
+    forma de abordar. Os tres campos vem do proprio cadastro da RFB, que e
+    publico. O que nao acontece e publicacao: `data/` fica fora do git.
     """
-    return lf.drop([c for c in layout.COLUNAS_SENSIVEIS], strict=False)
+    vazio = pl.lit("")
+    telefone = (
+        pl.when(pl.col("telefone_1").str.strip_chars().str.len_chars() > 0)
+        .then(
+            pl.format(
+                "({}) {}",
+                pl.col("ddd_1").str.strip_chars(),
+                pl.col("telefone_1").str.strip_chars(),
+            )
+        )
+        .otherwise(vazio)
+    )
+    endereco = pl.concat_str(
+        [
+            pl.col("tipo_logradouro").str.strip_chars(),
+            pl.col("logradouro").str.strip_chars(),
+            pl.col("numero").str.strip_chars(),
+            pl.col("bairro").str.strip_chars(),
+            pl.col("cep").str.strip_chars(),
+        ],
+        separator=" ",
+        ignore_nulls=True,
+    )
+    return lf.with_columns(
+        telefone.alias("telefone"),
+        pl.col("correio_eletronico").str.strip_chars().str.to_lowercase().alias("email"),
+        endereco.alias("endereco"),
+    )
 
 
 # --------------------------------------------------------------------------
 # Priorizacao
 # --------------------------------------------------------------------------
-# Regra explicita e auditavel -- nivel 1 da disciplina. Cada criterio soma
-# pontos e escreve o proprio motivo, de modo que o analista veja por que a
-# empresa apareceu naquela posicao. Nenhum modelo entra antes de existir
-# evidencia de que a regra nao basta.
+# Regra explicita e auditavel -- nivel 1 da disciplina. Nao ha pontuacao: somar
+# pesos exigiria afirmar quanto "porte" vale em relacao a "matriz", e nao
+# existe venda registrada que sustente esse numero. A lista e ordenada por
+# criterios em ordem declarada de importancia -- o primeiro criterio manda, o
+# segundo so desempata, e assim por diante. Trocar a ordem e uma decisao
+# visivel; trocar um peso seria uma decisao escondida.
 
 CRITERIOS = [
-    ("CNAE principal em servicos de TI (divisao 62)", pl.col("cnae_fiscal_principal").str.zfill(7).str.starts_with("62"), 30),
-    ("porte acima de microempresa", pl.col("porte_empresa").str.zfill(2) == "05", 25),
-    ("empresa de pequeno porte", pl.col("porte_empresa").str.zfill(2) == "03", 15),
-    ("estabelecimento matriz", pl.col("identificador_matriz_filial") == "1", 10),
-    ("mais de 3 anos de atividade", pl.col("inicio") < pl.date(2023, 1, 1), 15),
-    ("possui nome fantasia declarado", pl.col("nome_fantasia").str.strip_chars().str.len_chars() > 0, 5),
+    (
+        "porte acima de microempresa",
+        pl.col("porte_empresa").str.zfill(2) == "05",
+    ),
+    (
+        "empresa de pequeno porte",
+        pl.col("porte_empresa").str.zfill(2) == "03",
+    ),
+    (
+        "nao e MEI",
+        ~pl.col("is_mei"),
+    ),
+    (
+        "tecnologia como atividade-fim (CNAE na divisao 62)",
+        pl.col("cnae_fiscal_principal").str.zfill(7).str.starts_with("62"),
+    ),
+    (
+        "estabelecimento matriz",
+        pl.col("identificador_matriz_filial") == "1",
+    ),
+    (
+        "mais de 3 anos de atividade",
+        pl.col("inicio") < pl.date(2023, 1, 1),
+    ),
+    (
+        "possui nome fantasia declarado",
+        pl.col("nome_fantasia").str.strip_chars().str.len_chars() > 0,
+    ),
 ]
 
-PENALIDADE_MEI = ("MEI: teto de faturamento e no maximo um empregado", pl.col("is_mei"), -40)
+# Lead que nao atende criterio nenhum entrou so pelo filtro eliminatorio.
+# Dizer isso por escrito mantem a invariante: nenhuma linha fica sem motivo.
+SEM_CRITERIO = "nenhum criterio atendido: entrou apenas por estar ativa"
 
 
 def priorizar(lf: pl.LazyFrame) -> pl.LazyFrame:
-    """Calcula score e justificativa, mantendo apenas estabelecimentos ativos.
+    """Ordena os estabelecimentos ativos pelos criterios, na ordem declarada.
 
-    Situacao cadastral ativa e criterio eliminatorio, nao pontuacao: empresa
-    baixada nao e lead, e a qualquer peso ela ainda apareceria na lista.
+    Situacao cadastral ativa e criterio eliminatorio, nao de ordenacao:
+    empresa baixada nao e lead, e nao deve aparecer em posicao alguma.
+
+    O que ordena e o que aparece escrito na coluna `justificativa`, entao a
+    posicao nunca discorda do motivo.
     """
-    criterios = CRITERIOS + [PENALIDADE_MEI]
-    score = sum(
-        (pl.when(cond).then(pontos).otherwise(0) for _, cond, pontos in criterios),
-        start=pl.lit(0),
-    )
+    atende = [cond.fill_null(False) for _, cond in CRITERIOS]
     motivos = pl.concat_list(
-        [pl.when(cond).then(pl.lit(rotulo)).otherwise(None) for rotulo, cond, _ in criterios]
+        [
+            pl.when(cond).then(pl.lit(rotulo)).otherwise(None)
+            for (rotulo, _), cond in zip(CRITERIOS, atende)
+        ]
     ).list.drop_nulls()
+    justificativa = (
+        pl.when(motivos.list.len() == 0)
+        .then(pl.lit(SEM_CRITERIO))
+        .otherwise(motivos.list.join(" | "))
+    )
 
     return (
         lf.filter(pl.col("situacao_cadastral") == layout.SITUACAO_ATIVA)
         .with_columns(
-            score.alias("score"),
-            motivos.list.join(" | ").alias("justificativa"),
+            *[c.alias(f"_c{i}") for i, c in enumerate(atende)],
+            justificativa.alias("justificativa"),
         )
-        .sort("score", descending=True)
+        .sort(
+            [f"_c{i}" for i in range(len(CRITERIOS))] + ["inicio"],
+            descending=[True] * len(CRITERIOS) + [False],
+            nulls_last=True,
+        )
+        .drop([f"_c{i}" for i in range(len(CRITERIOS))])
+        .with_row_index("posicao", offset=1)
     )
 
 
 COLUNAS_SAIDA = [
+    "posicao",
     "cnpj",
     "razao_social",
     "nome_fantasia",
+    "telefone",
+    "email",
     "municipio_nome",
+    "endereco",
     "cnae_fiscal_principal",
     "cnae_descricao",
     "porte_nome",
@@ -158,6 +233,5 @@ COLUNAS_SAIDA = [
     "matriz_filial_nome",
     "inicio",
     "situacao_nome",
-    "score",
     "justificativa",
 ]

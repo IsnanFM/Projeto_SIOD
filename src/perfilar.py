@@ -1,4 +1,4 @@
-"""Caracterizacao da amostra -- suporte a Atividade 01.
+"""Caracterizacao do recorte -- suporte a Atividade 01.
 
 As funcoes devolvem DataFrames em vez de imprimir, para que o mesmo codigo
 sirva ao notebook de exploracao e ao relatorio de evidencia do pipeline. E o

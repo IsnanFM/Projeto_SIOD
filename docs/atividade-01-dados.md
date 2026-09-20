@@ -9,17 +9,17 @@
 
 ## 1. Fonte de dados
 
-Amostra real dos **dados abertos de CNPJ da Receita Federal**, competência
-2026-09. É a fonte principal prevista para o projeto, não substituto — não há
-limitação de disponibilidade a registrar.
+**Dados abertos de CNPJ da Receita Federal**, competência 2026-09. É a fonte
+principal prevista para o projeto, não substituto — não há limitação de
+disponibilidade a registrar.
 
-O recorte processado é a **partição 1 de 10** do arquivo de Estabelecimentos
-(4.753.435 registros), acompanhada das tabelas completas de Empresas (10
-partições), Simples e dos domínios Cnaes e Municipios. A escolha de uma única
-partição de Estabelecimentos é amostragem declarada, e sua consequência está
-medida na seção 6.
+O processamento é **censo, não amostra**: as dez partições de Estabelecimentos
+(73.366.147 registros), as dez de Empresas, Simples e os domínios Cnaes e
+Municipios. A primeira versão deste documento usava só a partição 1; a seção 6
+registra por que a amostragem foi abandonada.
 
-Nenhum dado pessoal é publicado neste repositório. Ver seção 3.6.
+Nenhum arquivo de dados é publicado neste repositório — inclusive os que
+carregam contato. Ver seção 3.7.
 
 ## 2. Caracterização da fonte
 
@@ -28,9 +28,9 @@ Nenhum dado pessoal é publicado neste repositório. Ver seção 3.6.
 | **Origem / responsável** | Secretaria Especial da Receita Federal do Brasil |
 | **Forma de acesso** | compartilhamento público Nextcloud, protocolo **WebDAV** sobre HTTPS — `https://arquivos.receitafederal.gov.br/public.php/webdav/`, usuário = token do share, senha vazia, caminho `Dados/Cadastros/CNPJ/<AAAA-MM>/` |
 | **Formato** | ZIP contendo CSV; separador `;`, aspas `"`, codificação **ISO-8859-1**, **sem linha de cabeçalho** |
-| **Dimensão** | 7,23 GB comprimidos na competência; 37 arquivos. Amostra deste trabalho: 2,0 GB comprimidos, 4.753.435 estabelecimentos |
+| **Dimensão** | 7,23 GB comprimidos na competência; 37 arquivos. Processado: 6,57 GiB comprimidos, 73.366.147 estabelecimentos |
 | **Periodicidade** | mensal; competências disponíveis de `2025-03` a `2026-09` |
-| **Restrições** | dado público, uso livre. A restrição é de saída, não de entrada: a base contém dado pessoal e não pode ser republicada integralmente |
+| **Restrições** | dado público, uso livre. A restrição é de republicação: a base traz contato e nome civil de pessoa física no caso de MEI, e não é redistribuída aqui |
 
 **Não existe API de consulta em massa.** APIs por CNPJ individual (MinhaReceita,
 BrasilAPI) servem para enriquecer um registro conhecido, não para construir
@@ -40,7 +40,7 @@ universo de prospecção. Para este projeto, arquivo em lote é o único caminho
 
 ### 3.1 Integridade formal — nenhum defeito
 
-As cinco validações implementadas reprovaram **zero registros** nos 965 do
+As cinco validações implementadas reprovaram **zero registros** nos 15.095 do
 recorte:
 
 | Verificação | Reprovadas |
@@ -77,9 +77,11 @@ número falso. Corrigido em `validar.expr_data_preenchida`.
 
 | Coluna | Ausente |
 |---|---|
-| `nome_cidade_exterior`, `pais`, `situacao_especial`, `data_situacao_especial` | 100,00% |
-| `ddd_2`, `telefone_2` | 79,27% |
-| `ddd_fax`, `fax` | 74,61% |
+| `nome_cidade_exterior` | 100,00% |
+| `situacao_especial`, `data_situacao_especial` | 99,98% |
+| `pais` | 95,58% |
+| `ddd_fax`, `fax` | 83,7% |
+| `ddd_2`, `telefone_2` | 81,46% |
 
 As quatro primeiras são estruturalmente vazias para empresas nacionais sem
 situação especial — ausência esperada, não defeito.
@@ -94,9 +96,13 @@ recorte se apoia no CNAE principal.
 
 A base contém `correio_eletronico`, telefones, endereço completo e — no caso de
 MEI e empresário individual — razão social que **é o nome civil da pessoa
-física**. O pipeline descarta essas colunas antes de qualquer escrita
-(`transformar.remover_dados_pessoais`). Verificado na saída: nenhuma coluna
-sensível presente.
+física**.
+
+Esses campos **entram** na lista de leads: telefone, e-mail e endereço são o
+que torna a lista acionável, e a própria RFB os publica. O cuidado é de
+publicação, não de uso — `data/` está fora do controle de versão, nenhum
+arquivo com contato é commitado, e qualquer recorte divulgado fora do time sai
+sem contato.
 
 ## 4. Dicionário mínimo de dados
 
@@ -108,7 +114,7 @@ Apenas os campos que sustentam a decisão "quem abordar primeiro".
 | `cnpj` | CNPJ completo, derivado | texto(14) | `60498117000179` | **não existe na fonte**; montado de 3 colunas |
 | `razao_social` | nome empresarial | texto | `TECNOATIVA CONSULTORIA E SISTEMAS` | vem de Empresas; é nome civil quando MEI |
 | `nome_fantasia` | nome de fachada | texto | — | ausente com frequência; usado como sinal fraco de maturidade |
-| `situacao_cadastral` | estado do registro | texto(2) | `02` | **50,5% do recorte não é `02`** |
+| `situacao_cadastral` | estado do registro | texto(2) | `02` | **53,3% do recorte não é `02`** |
 | `data_inicio_atividade` | abertura | texto(8) | `19960315` | `AAAAMMDD`; `00000000` = ausente |
 | `cnae_fiscal_principal` | atividade principal | texto(7) | `6204000` | subclasse; recorte por prefixo de divisão |
 | `municipio` | município | texto(4) | `3849` | **código RFB, não IBGE** |
@@ -119,32 +125,34 @@ Apenas os campos que sustentam a decisão "quem abordar primeiro".
 
 ## 5. Análise exploratória
 
-Amostra: **4.753.435** estabelecimentos, **30** atributos.
-Recorte `UF = BA` e CNAE divisões 62 + 63: **965** estabelecimentos (0,02%).
+Censo: **73.366.147** estabelecimentos, **30** atributos.
+Recorte `UF = BA` e CNAE divisões 62 + 63: **15.095** estabelecimentos (0,02%).
 
 ### Situação cadastral — o achado principal
 
 | Situação | Registros | % |
 |---|---|---|
-| **Baixada** | 487 | **50,47%** |
-| Ativa | 277 | 28,70% |
-| Inapta | 192 | 19,90% |
-| Suspensa | 9 | 0,93% |
+| Ativa | 7.042 | 46,65% |
+| **Baixada** | 5.821 | **38,56%** |
+| Inapta | 2.091 | 13,85% |
+| Suspensa | 132 | 0,87% |
+| Nula | 9 | 0,06% |
 
-**Metade do universo recortado é empresa encerrada.** Uma lista obtida por
-filtro de CNAE entregaria 965 nomes, dos quais 688 não deveriam ser contatados.
+**Mais da metade do universo recortado não está ativa.** Uma lista obtida por
+filtro de CNAE entregaria 15.095 nomes, dos quais 8.053 não deveriam ser
+contatados.
 
 ### Porte
 
 | Porte | Registros | % |
 |---|---|---|
-| Micro empresa | 733 | 75,96% |
-| Demais | 186 | 19,27% |
-| Empresa de pequeno porte | 46 | 4,77% |
+| Micro empresa | 12.157 | 80,54% |
+| Demais | 2.110 | 13,98% |
+| Empresa de pequeno porte | 828 | 5,49% |
 
 ### MEI — hipótese inicial refutada
 
-**14 estabelecimentos, 1,5% do recorte.**
+**517 estabelecimentos, 3,4% do recorte.**
 
 A premissa de partida era que CNAEs de tecnologia seriam dominados por MEI. Os
 dados dizem o contrário, e a explicação é normativa: as ocupações permitidas ao
@@ -157,41 +165,43 @@ Consequência direta para o projeto: **o discriminador da priorização é `port
 
 ### Concentração geográfica
 
-Salvador 428 (44,35%), Lauro de Freitas 102 (10,57%), Feira de Santana 42
-(4,35%), Vitória da Conquista 23, Camaçari 22. Mais da metade do universo está
-na Região Metropolitana de Salvador.
+Salvador 6.880 (45,58%), Lauro de Freitas 1.260 (8,35%), Feira de Santana 858
+(5,68%), Vitória da Conquista 495 (3,28%), Camaçari 334 (2,21%). Mais da metade
+do universo está na Região Metropolitana de Salvador.
 
 ### Composição por atividade
 
 | CNAE | Registros | % |
 |---|---|---|
-| 6209 — Suporte técnico e manutenção em TI | 285 | 29,53% |
-| 6311 — Tratamento de dados e hospedagem | 138 | 14,30% |
-| 6204 — Consultoria em TI | 132 | 13,68% |
-| 6319 — Portais e provedores de conteúdo | 105 | 10,88% |
-| 6201 — Desenvolvimento sob encomenda | 101 | 10,47% |
+| 6209 — Suporte técnico e manutenção em TI | 3.604 | 23,88% |
+| 6201 — Desenvolvimento sob encomenda | 2.511 | 16,63% |
+| 6204 — Consultoria em TI | 2.278 | 15,09% |
+| 6319 — Portais e provedores de conteúdo | 1.688 | 11,18% |
+| 6399 — Outros serviços de informação | 1.481 | 9,81% |
+| 6311 — Tratamento de dados e hospedagem | 1.348 | 8,93% |
 
 Suporte e manutenção — não desenvolvimento — é a maior fatia. Relevante para
 calibrar a oferta.
 
 ### Intervalo temporal
 
-No recorte: `1975-05-19` a `2021-05-18`, zero datas não parseáveis.
+No recorte: `1967-06-30` a `2026-09-11`, zero datas não parseáveis.
 
 ## 6. Síntese técnica
 
 **1. Os dados necessários estão efetivamente disponíveis?**
 Sim, para a versão atual. O universo de empresas de tecnologia na Bahia é
 obtenível de forma pública, gratuita, reproduzível e com atualização mensal. A
-extração está automatizada e o pipeline roda de ponta a ponta em 87 segundos.
+extração está automatizada e o pipeline processa a competência inteira em 8
+minutos.
 
 **2. Qual é o principal problema identificado na fonte?**
 Não é qualidade formal — as cinco validações reprovaram zero registros. O
 problema é que **o cadastro descreve existência jurídica, não atividade
-econômica**. Metade do recorte (50,47%) está baixada e outros 19,9% estão
-inaptos. Um sistema que apenas filtrasse por CNAE entregaria uma lista em que
-sete de cada dez nomes são inúteis para prospecção. Isso confirma a necessidade
-de ranqueamento com critério explícito, e não de um filtro.
+econômica**. 38,56% do recorte está baixado e outros 13,85% estão inaptos. Um
+sistema que apenas filtrasse por CNAE entregaria uma lista em que mais da
+metade dos nomes é inútil para prospecção. Isso confirma a necessidade de
+ranqueamento com critério explícito, e não de um filtro.
 
 **3. Há informação necessária que não está disponível?**
 Sim, e é a limitação mais séria. A RFB não publica número de funcionários,
@@ -202,16 +212,23 @@ fotografia, sem trilha de mudança de situação.
 
 **4. A caracterização exige alteração no problema, hipótese ou escopo?**
 No problema e na hipótese, não. No escopo da regra de priorização, sim — duas
-mudanças. Primeira: situação cadastral ativa passa de critério de pontuação a
-**critério eliminatório**, dado que metade do universo está morta. Segunda: a
-penalização de MEI, prevista como discriminador principal, é irrelevante (1,5%)
-e foi rebaixada; `porte` assumiu esse papel.
+mudanças. Primeira: situação cadastral ativa deixa de ser critério de ordenação
+e vira **critério eliminatório**, dado que metade do universo está morta.
+Segunda: o MEI, previsto como discriminador principal, é pequeno (3,4%) e
+desceu na ordem; `porte` assumiu o primeiro lugar.
 
 **5. Qual é o principal risco relacionado aos dados, neste momento?**
-Viés de amostragem da partição. Medido na partição 1 inteira: o ano de 2021
-concentra 147.576 aberturas, enquanto 2022 a 2026 somam cerca de 120 registros
-no total — uma queda de quatro ordens de grandeza que nenhuma dinâmica
-econômica explica. A partição, portanto, **não representa registros recentes**,
-e empresas recém-abertas são justamente leads de interesse. A causa do corte não
-foi determinada. Mitigação para a próxima versão: processar as dez partições de
-Estabelecimentos, não uma, e verificar se o corte desaparece.
+Era o viés de amostragem da partição, e ele foi eliminado processando o censo.
+A partição 1 concentrava 147.576 aberturas em 2021 contra ~120 em 2022-2026
+somados; no censo, 2022 a 2026 têm de 835 a 1.160 aberturas por ano no recorte.
+O corte era artefato do particionamento, não fenômeno econômico.
+
+O episódio deixou um registro que vale mais que o número: o particionamento da
+RFB **não é uniforme**, nem em tamanho (a partição 0 tem 2,1 GB contra ~330 MB
+nas demais) nem em conteúdo. Por isso nenhuma extrapolação de uma partição para
+o universo era defensável — e de fato não seria: a amostra dava 965 no recorte e
+277 leads, o censo deu 15.095 e 7.042, fatores de 15,6 e 25,4, diferentes entre
+si porque a amostra também distorcia a proporção de empresas ativas.
+
+O risco que permanece é o da pergunta 3: **suficiência**. Situação "ativa" não
+significa empresa operando, e não há variável de operação na fonte.
