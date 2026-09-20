@@ -1,0 +1,19 @@
+# Dados brutos e derivados nao entram no controle de versao.
+# Os arquivos da RFB somam centenas de MB e sao reproduziveis por
+# `python -m src.extract`. O universo tratado contem razao social de MEI,
+# que e nome civil de pessoa fisica.
+data/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.ipynb_checkpoints/
+
+# Sistema
+Thumbs.db
+desktop.ini
+
+# PDFs do enunciado
+*.pdf
